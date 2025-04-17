@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="map"         default=""/>
+    <arg name="app"         default="false"/>
+    <arg name="sim"         default="false"/>
+    <arg name="drive_type"  default="diff-corrected"/>
+    <arg name="node_namespace"      default="apriltag_ros_continuous_node" />
+    <arg name="image_topic"         default="image_raw" />
+    <arg name="launch_prefix"       default="" /> <!-- set to value="gdbserver localhost:10000" for remote debugging -->
+    <arg name="depth_camera_name"   default="depth_cam"/>
+    <arg     if="$(arg app)" name="robot_name"  default="/"/>
+    <arg unless="$(arg app)" name="robot_name"  default="$(env ROBOT_HOST)"/>
+    <arg     if="$(arg app)" name="master_name" default="/"/>
+    <arg unless="$(arg app)" name="master_name" default="$(env ROBOT_MASTER)"/>
+
+    <include file="$(find hiwonder_navigation)/launch/include/load_map.launch">
+        <arg name="map"         value="$(arg map)"/>
+        <arg name="robot_name"  value="$(arg robot_name)"/>
+    </include>
+
+    <include file="$(find hiwonder_slam)/launch/include/hiwonder_robot.launch">
+        <arg name="sim"         value="$(arg sim)"/>
+        <arg name="app"         value="$(arg app)"/>
+        <arg name="use_joy"     value="true"/>
+        <arg name="robot_name"  value="$(arg robot_name)"/>
+        <arg name="master_name" value="$(arg master_name)"/>
+    </include>
+
+    <include file="$(find hiwonder_navigation)/launch/include/navigation_base.launch">
+        <arg name="drive_type"  value="$(arg drive_type)"/>
+        <arg name="robot_name"  value="$(arg robot_name)"/>
+        <arg name="master_name" value="$(arg master_name)"/>
+    </include>
+    <include file="$(find hiwonder_controller)/launch/hiwonder_controller.launch"/>
+    <include file="$(find hiwonder_kinematics)/launch/kinematics_node.launch"/>
+    <!--include file="$(find hiwonder_navigation)/launch/rviz_navigation.launch">
+        <arg name="sim"         value="$(arg sim)"/>
+        <arg name="robot_name"  value="$(arg robot_name)"/>
+    </include-->
+
+    <!-- April Tag -->
+    <rosparam command="load" file="$(find hiwonder_example)/config/settings.yaml" ns="$(arg node_namespace)" />
+    <rosparam command="load" file="$(find hiwonder_example)/config/tags.yaml"     ns="$(arg node_namespace)" />
+    <node pkg="apriltag_ros" type="apriltag_ros_continuous_node" name="$(arg node_namespace)" clear_params="true" output="screen" launch-prefix="$(arg launch_prefix)" >
+        <!-- Remap topics from those used in code to those on the ROS network -->
+        <remap from="image_rect"  to="/$(arg robot_name)/$(arg depth_camera_name)/$(arg image_topic)" />
+        <remap from="camera_info" to="/$(arg robot_name)/$(arg depth_camera_name)/camera_info" />
+        <param name="publish_tag_detections_image" type="bool" value="true" />      <!-- default: false -->
+    </node>
+    <!--node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiwonder_example)/rviz/apriltag.rviz" /-->
+
+<!--Static Transforms -->
+    <!--node pkg="tf2_ros" type="static_transform_publisher" name="map_link_table_link" 
+	   args="0.252 0.550 0.225 -1.57 0 0 robot_1/map table_link" />
+    <node pkg="tf2_ros" type="static_transform_publisher" name="table_link_camera_link" 
+	   args="0.7330 0.2030 0.4128 -0.7197 0.5173 0.1370 -0.4424 table_link camera_link"/?>
+    <?node pkg="tf2_ros" type="static_transform_publisher" name="camera_link_object_link" 
+	   args="-0.3 0.16 0.8 0.8709 0.2116 0.2346 -0.3763 camera_link object_link"/-->
+</launch>
